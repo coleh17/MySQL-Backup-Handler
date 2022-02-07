@@ -1,8 +1,9 @@
+
 type MySQLConfigType = {
-  host: String,
-  user: String,
-  password: String,
-  database: String
+	host: String,
+	user: String,
+	password: String,
+	database: String
 };
 
 /**
@@ -10,50 +11,49 @@ type MySQLConfigType = {
  */
 class Backup {
 
-  mySqlConfig: MySQLConfigType;
+	mySqlConfig: MySQLConfigType;
 
-  constructor(_config: Object) {
-    let validated = this.validateConfig(_config);
-    if (!validated) return;
+	constructor(_config: Object) {
+		let validated = this.validateConfig(_config);
+		if (!validated) return;
 
-  }
+	}
 
-  /**
-   * Helper method to validate a MySQL connection config object and return a constructed MySQLConfig type
-   * @param config MySQL connection config object
-   * @returns Constructed MySQLConfig type
-   */
-  validateConfig(configObject: any): boolean {
-    const errors: Array<Error> = Object.keys(configObject)
-      .filter(key => {
-        !requiredMySQLConfigFields.includes(key) || configObject[key as keyof typeof configObject]! instanceof String
-      })
-      .map(key => {
-        return new Error(`${key} is an invalid MySQL Config key.`)
-      })
-
-    if (errors.length) {
-      for (const err of errors) {
-        console.log(err.message);
-      }
-      return true;
-    }
-    else {
-      this.mySqlConfig = {
-        host: configObject.host,
-        user: configObject.user,
-        password: configObject.password,
-        database: configObject.databse
-      };
-      return false;
-    }
-  }
+	/**
+	 * Helper method to validate a MySQL connection config object and return a constructed MySQLConfig type
+	 * @param config MySQL connection config object
+	 * @returns Constructed MySQLConfig type
+	 */
+	validateConfig(configObject: any): boolean {
+		// Check for invalid keys or invalid types
+		const errors: Array<Error> = Object.keys(configObject)
+			.filter(key => {
+				!requiredMySQLConfigFields.includes(key) || configObject[key as keyof typeof configObject]! instanceof String
+			})
+			.map(key => {
+				return new Error(`${key} is an invalid MySQL config key.`)
+			})
+		// Check for missing keys
+		if (Object.keys(configObject).sort().toString() != requiredMySQLConfigFields.sort().toString()) {
+			errors.push(new Error(`Missing values in MySQL config.`));
+		}
+		// If invalid keys found, display errors and exit
+		if (errors.length) {
+			for (const err of errors) {
+				console.log(err.message);
+			}
+			return false;
+		}
+		// If keys are valid, set class config to new MySQLConfigType with config data
+		else {
+			this.mySqlConfig = {
+				host: configObject.host,
+				user: configObject.user,
+				password: configObject.password,
+				database: configObject.databse
+			};
+			return true;
+		}
+	}
 
 }
-
-const requiredMySQLConfigFields = [
-  "host",
-  "user",
-  "password",
-  "database",
-];
