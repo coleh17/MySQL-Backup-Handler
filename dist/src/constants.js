@@ -1,8 +1,9 @@
 "use strict";
-const requiredMySQLConfigFields = [
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.requiredMySQLConfigFields = void 0;
+exports.requiredMySQLConfigFields = [
     "host",
     "user",
     "password",
     "database",
 ];
-module.exports = { requiredMySQLConfigFields };

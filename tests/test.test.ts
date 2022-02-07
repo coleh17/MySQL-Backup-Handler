@@ -1,1 +1,0 @@
-const T = require('../src/index');

@@ -1,9 +1,7 @@
 
-const requiredMySQLConfigFields = [
+export const requiredMySQLConfigFields = [
     "host",
     "user",
     "password",
     "database",
 ];
-
-module.exports = { requiredMySQLConfigFields };

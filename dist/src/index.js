@@ -1,8 +1,10 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const constants_1 = require("./constants");
 /**
  * Base class
  */
-class Backup {
+module.exports = class Backup {
     constructor(_config) {
         let validated = this.validateConfig(_config);
         if (!validated)
@@ -17,13 +19,13 @@ class Backup {
         // Check for invalid keys or invalid types
         const errors = Object.keys(configObject)
             .filter(key => {
-            !requiredMySQLConfigFields.includes(key) || configObject[key] instanceof String;
+            !constants_1.requiredMySQLConfigFields.includes(key) || configObject[key] instanceof String;
         })
             .map(key => {
             return new Error(`${key} is an invalid MySQL config key.`);
         });
         // Check for missing keys
-        if (Object.keys(configObject).sort().toString() != requiredMySQLConfigFields.sort().toString()) {
+        if (Object.keys(configObject).sort().toString() != constants_1.requiredMySQLConfigFields.sort().toString()) {
             errors.push(new Error(`Missing values in MySQL config.`));
         }
         // If invalid keys found, display errors and exit
@@ -44,4 +46,6 @@ class Backup {
             return true;
         }
     }
-}
+};
+// module.exports = Backup;
+// export const backup = new Backup();

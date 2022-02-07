@@ -1,3 +1,4 @@
+import { requiredMySQLConfigFields } from "./constants";
 
 type MySQLConfigType = {
 	host: String,
@@ -9,7 +10,7 @@ type MySQLConfigType = {
 /**
  * Base class
  */
-class Backup {
+module.exports = class Backup {
 
 	mySqlConfig: MySQLConfigType;
 
@@ -57,3 +58,6 @@ class Backup {
 	}
 
 }
+
+// module.exports = Backup;
+// export const backup = new Backup();
