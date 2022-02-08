@@ -1,4 +1,5 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 const Backup = require('../src/index');
 test("MySQL Validation", () => {
     let b = new Backup({ host: "test", user: "test", password: "test", database: "test" });

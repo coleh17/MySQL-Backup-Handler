@@ -1,3 +1,4 @@
+export {};
 const Backup = require('../src/index');
 
 test("MySQL Validation", () => {
