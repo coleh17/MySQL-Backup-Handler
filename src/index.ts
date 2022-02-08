@@ -1,3 +1,8 @@
+const request = require('request');
+const mysqlDump = require('wi-sqldump');
+const findRemoveSync = require('find-remove');
+const sftpClient = require('ssh2-sftp-client');
+
 import { requiredMySQLConfigFields } from "./constants";
 
 type MySQLConfigType = {
@@ -12,6 +17,7 @@ type MySQLConfigType = {
  */
 module.exports = class Backup {
 	private mySqlConfig: MySQLConfigType;
+	private backupDir: string;
 	private outputMode: boolean;
 	private debugMode: boolean;
 	private webhookMode: boolean;
@@ -23,11 +29,12 @@ module.exports = class Backup {
 	 * @param _outputMode Log program output in console
 	 * @param _debugMode Log debug output in console
 	 */
-	constructor(_config: Object, _outputMode: boolean, _debugMode: boolean) {
+	constructor(_config: Object, _backupDir: string, _outputMode: boolean, _debugMode: boolean) {
 		let validated = this.validateConfig(_config);
-		if (!validated) return;
+		if (!validated) return; // Exit if invalid MySQL config
 
-		this.outputMode = _outputMode;
+		this.backupDir = _backupDir;
+		this.outputMode = _outputMode || this.debugMode; // Active if debugMode is on
 		this.debugMode = _debugMode;
 
 	}
@@ -37,7 +44,7 @@ module.exports = class Backup {
 	 * @param config MySQL connection config object
 	 * @returns Constructed MySQLConfig type
 	 */
-	private validateConfig(configObject: any): boolean {
+	private validateConfig = (configObject: any): boolean => {
 		// Check for invalid keys or invalid types
 		const errors: Array<Error> = Object.keys(configObject)
 			.filter(key => {
@@ -71,6 +78,25 @@ module.exports = class Backup {
 		}
 	}
 
+	public createBackup = (): void => {
+
+	}
+
+	/**
+	 * Helper method to delete old backup files
+	 * @param age Minimum age of files to remove, in seconds
+	 * @returns Number of files removed
+	 */
+	public removeOldBackups = (age: number): number => {
+		let result = findRemoveSync(this.backupDir, {
+			age: { seconds: age },
+			extentions: '.sql'
+		});
+		let removedFiles = Object.keys(result).length;
+		this.sendOutputLog(`Deleted a total of ${removedFiles} old backups.`);
+		return removedFiles;
+	}
+
 	/**
 	 * Helper method to set the output webhook
 	 * @param url Webhook URL
@@ -97,6 +123,7 @@ module.exports = class Backup {
 	 */
 	public enableWebook = (): void => {
 		this.webhookMode = true;
+		this.sendDebugLog("Webhook enabled");
 	}
 
 	/**
@@ -104,6 +131,7 @@ module.exports = class Backup {
 	 */
 	public disableWebook = (): void => {
 		this.webhookMode = false;
+		this.sendDebugLog("Webhook disabled");
 	}
 
 	/**
@@ -111,6 +139,26 @@ module.exports = class Backup {
 	 */
 	public isWebhookEnabled = (): boolean => {
 		return this.webhookMode;
+	}
+
+	/**
+	 * Helper method to send a webhook message
+	 * @param message Webhook message to send
+	 */
+	private sendWebhook = (message: string): void => {
+		if (!this.webhookMode || !this.getWebhook) return;
+		request.post(this.getWebhook, {
+			form: {
+				content: message
+			},
+			headers: {
+				'Conent-Type': 'application/x-www-form-urlencoded'
+			}
+		}, (err: any) => {
+			if (err) {
+				this.sendOutputLog('Error sending webhook: ' + err.message);
+			}
+		})
 	}
 
 	/**
