@@ -12,6 +12,11 @@ type MySQLConfigType = {
 	database: string
 };
 
+interface ReturnObject {
+	message: string,
+	success: boolean
+}
+
 /**
  * Base class
  */
@@ -78,8 +83,39 @@ module.exports = class Backup {
 		}
 	}
 
-	public createBackup = (): void => {
-
+	/**
+	 * Creates a backup at the specified file location and returns results
+	 * @param fileName Path for backup file location
+	 * @returns ReturnObject with info on backup result
+	 */
+	public createBackup = async (fileName: string): Promise<ReturnObject> => {
+		return new Promise((resolve, reject) => {
+			// Create backup at specified path
+			mysqlDump({
+				...this.mySqlConfig,
+				dest: `${fileName}.sql`
+			}, async (err: any) => {
+				let result: ReturnObject;
+				// Notify if backup failed with errors
+				if (err) {
+					let errorString = `Error while taking backup at ${Date.now()} to: ${fileName}.sql\nError:\n${err}`;
+					result = {
+						message: errorString,
+						success: false
+					}
+					this.sendOutputLog(`Error while taking backup at ${Date.now()} to: ${fileName}.sql`)
+					this.sendDebugLog(errorString);
+				} else {
+					let successString = `Backup taken at ${Date.now()} to: ${fileName}.sql`;
+					result = {
+						message: successString,
+						success: true
+					}
+					this.sendOutputLog(successString);
+				}
+				resolve(result);
+			})
+		});
 	}
 
 	/**
