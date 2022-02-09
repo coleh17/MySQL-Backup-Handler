@@ -4,7 +4,9 @@ const findRemoveSync = require('find-remove');
 const sftpClient = require('ssh2-sftp-client');
 const fs = require('fs');
 
-import { requiredMySQLConfigFields, MySQLConfigType, SFTPConfigType, ReturnObject } from "./constants";
+import * as Utils from "./utils";
+import * as Constants from "./constants";
+import { MySQLConfigType, SFTPConfigType, ReturnObject } from "./types";
 
 /**
  * Base class
@@ -43,13 +45,13 @@ module.exports = class Backup {
 		// Check for invalid keys or invalid types
 		const errors: Array<Error> = Object.keys(configObject)
 			.filter(key => {
-				return !requiredMySQLConfigFields.includes(key) || typeof configObject[key] != 'string'
+				return !Constants.requiredMySQLConfigFields.includes(key) || typeof configObject[key] != 'string'
 			})
 			.map(key => {
 				return new Error(`${key} is an invalid MySQL config key.`)
 			})
 		// Check for missing keys
-		if (Object.keys(configObject).sort().toString() != requiredMySQLConfigFields.sort().toString()) {
+		if (Object.keys(configObject).sort().toString() != Constants.requiredMySQLConfigFields.sort().toString()) {
 			errors.push(new Error(`Missing values in MySQL config.`));
 		}
 		// If invalid keys found, display errors and exit
@@ -142,8 +144,7 @@ module.exports = class Backup {
 					this.sendDebugLog(`Connected to remote server ${this.sftpConfig.host}. Transferring files...`);
 					try {
 						await client.put(localFilePath, remoteFilePath);
-						this.sendDebugLog(`Files successfully transferred to ${this.sftpConfig.host}`);
-						this.sendOutputLog(`Files successfully transferred!`);
+						this.sendOutputLog(`Files successfully transferred to ${this.sftpConfig.host}!`);
 						result = { message: `Files successfully transferred!`, success: true }
 					} catch (err) {
 						this.sendDebugLog(`Error while transferring files to ${this.sftpConfig.host}:\n${err}`);
@@ -184,7 +185,7 @@ module.exports = class Backup {
 	 * @param url Webhook URL
 	 */
 	public setWebhook = (url: string): void => {
-		if (this.isValidWebhookURL(url)) {
+		if (Utils.isValidWebhookURL(url)) {
 			this.webhookURL = url;
 			this.sendDebugLog("Webhook set to: " + url);
 		} else {
@@ -263,13 +264,4 @@ module.exports = class Backup {
 		}
 	}
 
-	/**
-	 * Helper method to determine if URL is a valid discord.com webhook URL
-	 * @param url Webhook URL
-	 * @returns boolean if URL is a valid webhook URL
-	 */
-	private isValidWebhookURL = (url: string): boolean => {
-		var pattern = new RegExp('^(https:\/\/discordapp.com\/api\/webhooks\/[0-9]{17,20}\/[a-z,A-Z,0-9,_]{60,75})');
-		return pattern.test(url);
-	}
 }
