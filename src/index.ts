@@ -2,26 +2,16 @@ const request = require('request');
 const mysqlDump = require('wi-sqldump');
 const findRemoveSync = require('find-remove');
 const sftpClient = require('ssh2-sftp-client');
+const fs = require('fs');
 
-import { requiredMySQLConfigFields } from "./constants";
-
-type MySQLConfigType = {
-	host: string,
-	user: string,
-	password: string,
-	database: string
-};
-
-interface ReturnObject {
-	message: string,
-	success: boolean
-}
+import { requiredMySQLConfigFields, MySQLConfigType, SFTPConfigType, ReturnObject } from "./constants";
 
 /**
  * Base class
  */
 module.exports = class Backup {
 	private mySqlConfig: MySQLConfigType;
+	private sftpConfig: SFTPConfigType;
 	private backupDir: string;
 	private outputMode: boolean;
 	private debugMode: boolean;
@@ -105,6 +95,7 @@ module.exports = class Backup {
 					}
 					this.sendOutputLog(`Error while taking backup at ${Date.now()} to: ${fileName}.sql`)
 					this.sendDebugLog(errorString);
+					reject(result);
 				} else {
 					let successString = `Backup taken at ${Date.now()} to: ${fileName}.sql`;
 					result = {
@@ -112,10 +103,65 @@ module.exports = class Backup {
 						success: true
 					}
 					this.sendOutputLog(successString);
+					resolve(result);
 				}
-				resolve(result);
 			})
 		});
+	}
+
+	public remoteBackup = async (localFilePath: string, remoteFilePath: string): Promise<ReturnObject> => {
+		return new Promise((resolve, reject) => {
+			let result: ReturnObject;
+			// If no SFTP config has been set up
+			if (!this.sftpConfig) {
+				result = { message: `No SFTP config has been supplied!`, success: false }
+				this.sendDebugLog(`No SFTP config has been supplied!`);
+				reject(result);
+			}
+			// Check if file exists
+			fs.open(localFilePath, 'r', async (err: any) => {
+				if (err) {
+					this.sendOutputLog(`Error creating remote backup!`);
+					// If file does not exist
+					if (err.code == 'ENOENT') {
+						result = { message: `${localFilePath} does not exist in the current directory!`, success: false }
+						this.sendDebugLog(`Could not find file: ${localFilePath}`);
+					}
+					// If other error while opening file
+					else {
+						result = { message: `Error while opening file ${localFilePath}:\n${err}`, success: false }
+						this.sendDebugLog(`Error while opening file ${localFilePath}:\n${err}`);
+					}
+					reject(result);
+				}
+				// Create connection
+				const client: any = new sftpClient();
+				client.connect({
+					...this.sftpConfig
+				}).then(async () => {
+					this.sendDebugLog(`Connected to remote server ${this.sftpConfig.host}. Transferring files...`);
+					try {
+						await client.put(localFilePath, remoteFilePath);
+						this.sendDebugLog(`Files successfully transferred to ${this.sftpConfig.host}`);
+						this.sendOutputLog(`Files successfully transferred!`);
+						result = { message: `Files successfully transferred!`, success: true }
+					} catch (err) {
+						this.sendDebugLog(`Error while transferring files to ${this.sftpConfig.host}:\n${err}`);
+						result = { message: `Error while transferring files to ${this.sftpConfig.host}:\n${err}`, success: false }
+					}
+
+					client.end();
+					this.sendDebugLog(`Connection to ${this.sftpConfig.host} closed.`);
+
+					if (result.success) resolve(result);
+					else reject(result);
+				}).catch((err: any) => {
+					result = { message: `Error while connecting to remote server ${this.sftpConfig.host}:\n${err}`, success: false }
+					this.sendDebugLog(`Error while connecting to remote server ${this.sftpConfig.host}:\n${err}`);
+					reject(result);
+				});
+			})
+		})
 	}
 
 	/**
