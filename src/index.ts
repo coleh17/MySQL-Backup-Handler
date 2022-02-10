@@ -57,7 +57,7 @@ module.exports = class Backup {
 						success: false
 					}
 					this.sendOutputLog(`Error while taking backup at ${Date.now()} to: ${fileName}.sql`)
-					this.sendDebugLog(errorString);
+					this.sendDebugLog(result.message);
 					reject(result);
 				} else {
 					let successString = `Backup taken at ${Date.now()} to: ${fileName}.sql`;
@@ -65,7 +65,7 @@ module.exports = class Backup {
 						message: successString,
 						success: true
 					}
-					this.sendOutputLog(successString);
+					this.sendOutputLog(result.message);
 					resolve(result);
 				}
 			})
@@ -84,7 +84,7 @@ module.exports = class Backup {
 			// If no SFTP config has been set up
 			if (!this.sftpConfig) {
 				result = { message: `No SFTP config has been supplied!`, success: false }
-				this.sendDebugLog(`No SFTP config has been supplied!`);
+				this.sendDebugLog(result.message);
 				reject(result);
 			}
 			// Check if file exists
@@ -99,7 +99,7 @@ module.exports = class Backup {
 					// If other error while opening file
 					else {
 						result = { message: `Error while opening file ${localFilePath}:\n${err}`, success: false }
-						this.sendDebugLog(`Error while opening file ${localFilePath}:\n${err}`);
+						this.sendDebugLog(result.message);
 					}
 					reject(result);
 				}
@@ -112,22 +112,21 @@ module.exports = class Backup {
 					try {
 						// Transfer file from local path to remote path
 						await client.put(localFilePath, remoteFilePath);
-						this.sendOutputLog(`Files successfully transferred to ${this.sftpConfig.host}!`);
-						result = { message: `Files successfully transferred!`, success: true }
+						result = { message: `Files successfully transferred to ${this.sftpConfig.host}!`, success: true }
+						this.sendOutputLog(result.message);
 					} catch (err) {
-						this.sendDebugLog(`Error while transferring files to ${this.sftpConfig.host}:\n${err}`);
 						result = { message: `Error while transferring files to ${this.sftpConfig.host}:\n${err}`, success: false }
+						this.sendDebugLog(result.message);
 					}
 					// End the connection after transfer is complete
 					client.end();
 					this.sendDebugLog(`Connection to ${this.sftpConfig.host} closed.`);
-
 					if (result.success) resolve(result);
 					else reject(result);
 				}).catch((err: any) => {
 					// If there is an error connecting to remote server
 					result = { message: `Error while connecting to remote server ${this.sftpConfig.host}:\n${err}`, success: false }
-					this.sendDebugLog(`Error while connecting to remote server ${this.sftpConfig.host}:\n${err}`);
+					this.sendDebugLog(result.message);
 					reject(result);
 				});
 			})
