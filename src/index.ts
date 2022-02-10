@@ -37,45 +37,6 @@ module.exports = class Backup {
 	}
 
 	/**
-	 * Helper method to validate a MySQL connection config object and return a constructed MySQLConfig type
-	 * @param config MySQL connection config object
-	 * @returns Constructed MySQLConfig type
-	 */
-	private validateConfig = (configObject: any): boolean => {
-		// Check for invalid keys or invalid types
-		const errors: Array<Error> = Object.keys(configObject)
-			.filter(key => {
-				return !Constants.requiredMySQLConfigFields.includes(key) || typeof configObject[key] != 'string'
-			})
-			.map(key => {
-				return new Error(`${key} is an invalid MySQL config key.`)
-			})
-		// Check for missing keys
-		if (Object.keys(configObject).sort().toString() != Constants.requiredMySQLConfigFields.sort().toString()) {
-			errors.push(new Error(`Missing values in MySQL config.`));
-		}
-		// If invalid keys found, display errors and exit
-		if (errors.length) {
-			for (const err of errors) {
-				this.sendDebugLog(err.message);
-			}
-			this.sendDebugLog("Invalid MySQL Config");
-			return false;
-		}
-		// If keys are valid, set class config to new MySQLConfigType with config data
-		else {
-			this.mySqlConfig = {
-				host: configObject.host,
-				user: configObject.user,
-				password: configObject.password,
-				database: configObject.database
-			};
-			this.sendDebugLog("MySQL Config Validated");
-			return true;
-		}
-	}
-
-	/**
 	 * Creates a backup at the specified file location and returns results
 	 * @param fileName Path for backup file location
 	 * @returns ReturnObject with info on backup result
@@ -111,6 +72,12 @@ module.exports = class Backup {
 		});
 	}
 
+	/**
+	 * Method to run a remote backup to configured server
+	 * @param localFilePath Path to local backup file
+	 * @param remoteFilePath Path to remote backup location
+	 * @returns ReturnObject
+	 */
 	public remoteBackup = async (localFilePath: string, remoteFilePath: string): Promise<ReturnObject> => {
 		return new Promise((resolve, reject) => {
 			let result: ReturnObject;
@@ -143,6 +110,7 @@ module.exports = class Backup {
 				}).then(async () => {
 					this.sendDebugLog(`Connected to remote server ${this.sftpConfig.host}. Transferring files...`);
 					try {
+						// Transfer file from local path to remote path
 						await client.put(localFilePath, remoteFilePath);
 						this.sendOutputLog(`Files successfully transferred to ${this.sftpConfig.host}!`);
 						result = { message: `Files successfully transferred!`, success: true }
@@ -150,19 +118,41 @@ module.exports = class Backup {
 						this.sendDebugLog(`Error while transferring files to ${this.sftpConfig.host}:\n${err}`);
 						result = { message: `Error while transferring files to ${this.sftpConfig.host}:\n${err}`, success: false }
 					}
-
+					// End the connection after transfer is complete
 					client.end();
 					this.sendDebugLog(`Connection to ${this.sftpConfig.host} closed.`);
 
 					if (result.success) resolve(result);
 					else reject(result);
 				}).catch((err: any) => {
+					// If there is an error connecting to remote server
 					result = { message: `Error while connecting to remote server ${this.sftpConfig.host}:\n${err}`, success: false }
 					this.sendDebugLog(`Error while connecting to remote server ${this.sftpConfig.host}:\n${err}`);
 					reject(result);
 				});
 			})
 		})
+	}
+
+	/**
+	 * Sets the remote server SFTP config
+	 * @param configObj SFTP Config
+	 * @returns ReturnObject
+	 */
+	public setRemoteServer = (configObj: Object): ReturnObject => {
+		let result: ReturnObject;
+		if (this.validateConfig(configObj)) {
+			result = {
+				message: "Updated Remote Server config.",
+				success: true
+			};
+		} else {
+			result = {
+				message: "Failed updating Remote Server config.",
+				success: false
+			};
+		}
+		return result;
 	}
 
 	/**
@@ -242,6 +232,45 @@ module.exports = class Backup {
 				this.sendOutputLog('Error sending webhook: ' + err.message);
 			}
 		})
+	}
+
+	/**
+	 * Helper method to validate a MySQL connection config object and return a constructed MySQLConfig type
+	 * @param config MySQL connection config object
+	 * @returns Constructed MySQLConfig type
+	 */
+	private validateConfig = (configObject: any): boolean => {
+		// Check for invalid keys or invalid types
+		const errors: Array<Error> = Object.keys(configObject)
+			.filter(key => {
+				return !Constants.requiredMySQLConfigFields.includes(key) || typeof configObject[key] != 'string'
+			})
+			.map(key => {
+				return new Error(`${key} is an invalid MySQL config key.`)
+			})
+		// Check for missing keys
+		if (Object.keys(configObject).sort().toString() != Constants.requiredMySQLConfigFields.sort().toString()) {
+			errors.push(new Error(`Missing values in MySQL config.`));
+		}
+		// If invalid keys found, display errors and exit
+		if (errors.length) {
+			for (const err of errors) {
+				this.sendDebugLog(err.message);
+			}
+			this.sendDebugLog("Invalid MySQL Config");
+			return false;
+		}
+		// If keys are valid, set class config to new MySQLConfigType with config data
+		else {
+			this.mySqlConfig = {
+				host: configObject.host,
+				user: configObject.user,
+				password: configObject.password,
+				database: configObject.database
+			};
+			this.sendDebugLog("MySQL Config Validated");
+			return true;
+		}
 	}
 
 	/**
