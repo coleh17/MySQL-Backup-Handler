@@ -25,14 +25,16 @@ module.exports = class Backup {
 	 * @param _config MySQL Connection config
 	 * @param _outputMode Log program output in console
 	 * @param _debugMode Log debug output in console
+	 * @param _webhookMode Enable or disable webhooks
 	 */
-	constructor(_config: Object, _backupDir: string, _outputMode: boolean, _debugMode: boolean) {
+	constructor(_config: Object, _backupDir: string, _outputMode: boolean, _debugMode: boolean, _webhookMode: boolean) {
 		let validated = this.validateConfig(_config);
 		if (!validated) return; // Exit if invalid MySQL config
 
 		this.backupDir = _backupDir;
 		this.outputMode = _outputMode || this.debugMode; // Active if debugMode is on
 		this.debugMode = _debugMode;
+		this.webhookMode = _webhookMode;
 
 	}
 
@@ -218,10 +220,14 @@ module.exports = class Backup {
 	 * @param message Webhook message to send
 	 */
 	private sendWebhook = (message: string): void => {
-		if (!this.webhookMode || !this.getWebhook) return;
+		if (!this.webhookMode) return;
+		if (!this.getWebhook()) {
+			this.sendDebugLog("Failed sending webhook: No webhook config set up.")
+			return;
+		}
 		request.post(this.getWebhook, {
 			form: {
-				content: message
+				content: `💾 ${message}`
 			},
 			headers: {
 				'Conent-Type': 'application/x-www-form-urlencoded'
@@ -280,6 +286,7 @@ module.exports = class Backup {
 		if (this.outputMode) {
 			console.log(`[MySQL Backup Log] ${message}`);
 		}
+		this.sendWebhook(message);
 	}
 
 	/**
